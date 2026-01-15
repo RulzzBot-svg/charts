@@ -1,114 +1,116 @@
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+import plotly.express as px
 
-sns.set_theme(style="white", font_scale=1.1)
 
-# -----------------------------
-# Load + clean
-# -----------------------------
-df = pd.read_csv("AFC SALES BY CUSTOMER TYPE 2023.CSV")
+paths = {
+    2023: "AFC SALES BY CUSTOMER TYPE 2023.CSV",
+    2024: "AFC SALES BY CUSTOMER TYPE 2024.CSV",
+    2025: "AFC SALES BY CUSTOMER TYPE 2025.CSV",
+}
 
-df = df.rename(columns={df.columns[0]: "Category"})
-df = df[~df["Category"].str.upper().isin(["TOTAL", "GRAND TOTAL"])]
+month_order = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 
-if "TOTAL" in df.columns:
-    df = df.drop(columns=["TOTAL"])
+COLOR_MAP = {
+    "Commercial": "#4E79A7",
+    "Healthcare": "#59A14F",
+    "Industrial": "#F28E2B",
+    "Education": "#E15759",
+    "Government": "#76B7B2",
+    "Residential": "#EDC948",
+    "Other": "#B07AA1",
+}
 
-month_cols = [c for c in df.columns if "23" in c]
 
-for c in month_cols:
-    df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+dfs = []
 
-df["YearlyTotal"] = df[month_cols].sum(axis=1)
+for year, path in paths.items():
+    df = pd.read_csv(path)
+    df = df.rename(columns={df.columns[0]: "CustomerType"})
+    df = df[df["CustomerType"].str.upper() != "TOTAL"]
 
-monthly_totals = df[month_cols].sum().reset_index()
-monthly_totals.columns = ["Month", "Sales"]
+    month_cols = [c for c in df.columns if c not in ["CustomerType", "TOTAL"]]
 
-yearly_sorted = df.sort_values("YearlyTotal", ascending=False)
-top3 = yearly_sorted.head(3)
+    long_df = df.melt(
+        id_vars="CustomerType",
+        value_vars=month_cols,
+        var_name="Month",
+        value_name="Sales"
+    )
 
-# -----------------------------
-# Layout
-# -----------------------------
-fig = plt.figure(figsize=(16, 10))
-gs = fig.add_gridspec(3, 2, height_ratios=[1.2, 1, 1], hspace=0.45, wspace=0.35)
+    # Normalize month labels (Jan 23 → Jan)
+    long_df["Month"] = long_df["Month"].str[:3]
 
-# -----------------------------
-# 1) Monthly trend (LINE)
-# -----------------------------
-ax1 = fig.add_subplot(gs[0, :])
-sns.lineplot(
-    data=monthly_totals,
-    x="Month",
+    # Force Jan → Dec order
+    long_df["Month"] = pd.Categorical(
+        long_df["Month"],
+        categories=month_order,
+        ordered=True
+    )
+
+    long_df["Year"] = year
+    dfs.append(long_df)
+
+data = pd.concat(dfs, ignore_index=True)
+
+
+for year in sorted(data["Year"].unique()):
+    yearly_data = data[data["Year"] == year]
+
+    monthly_grouped = (
+        yearly_data
+        .groupby(["Month", "CustomerType"], as_index=False)["Sales"]
+        .sum()
+    )
+
+    fig = px.bar(
+        monthly_grouped,
+        x="Month",
+        y="Sales",
+        color="CustomerType",
+        barmode="group",   # 🔥 THIS is the key line
+        title=f"Monthly Sales by Customer Type — {year}",
+        hover_data={"Sales": ":,.0f"}
+    )
+
+    fig.show()
+
+
+for year in sorted(data["Year"].unique()):
+    yearly_data = data[data["Year"] == year]
+
+    customer_totals = (
+        yearly_data.groupby("CustomerType", as_index=False)["Sales"]
+        .sum()
+    )
+
+    fig = px.pie(
+        customer_totals,
+        names="CustomerType",
+        values="Sales",
+        title=f"Sales Distribution by Customer Type — {year}",
+        hole=0.35
+    )
+
+    fig.show()
+
+
+comparison = (
+    data.groupby(["Year", "CustomerType"], as_index=False)["Sales"]
+    .sum()
+)
+
+comparison["Year"] = comparison["Year"].astype(str)
+
+fig = px.bar(
+    comparison,
+    x="CustomerType",
     y="Sales",
-    marker="o",
-    linewidth=3,
-    ax=ax1
+    color="Year",
+    barmode="group",
+    title="Customer Type Sales Comparison (2023-2025)",
+    hover_data={"Sales":":,.0f"},
+    category_orders={"Year":["2023","2024","2025"]}
 )
-ax1.set_title("Monthly Sales Trend — 2023", fontsize=15)
-ax1.set_ylabel("Sales ($)")
-ax1.set_xlabel("")
-ax1.tick_params(axis="x", rotation=30)
 
-# Label only max & min
-max_row = monthly_totals.loc[monthly_totals["Sales"].idxmax()]
-min_row = monthly_totals.loc[monthly_totals["Sales"].idxmin()]
-
-ax1.annotate(f"${max_row.Sales:,.0f}", (max_row.name, max_row.Sales),
-             xytext=(0,10), textcoords="offset points", ha="center")
-
-ax1.annotate(f"${min_row.Sales:,.0f}", (min_row.name, min_row.Sales),
-             xytext=(0,-15), textcoords="offset points", ha="center")
-
-# -----------------------------
-# 2) Yearly totals (HORIZONTAL)
-# -----------------------------
-ax2 = fig.add_subplot(gs[1, 0])
-sns.barplot(
-    data=yearly_sorted,
-    y="Category",
-    x="YearlyTotal",
-    ax=ax2
-)
-ax2.set_title("Yearly Sales by Customer Type")
-ax2.set_xlabel("Sales ($)")
-ax2.set_ylabel("")
-
-# -----------------------------
-# 3) Top 3 yearly
-# -----------------------------
-ax3 = fig.add_subplot(gs[1, 1])
-sns.barplot(
-    data=top3,
-    x="Category",
-    y="YearlyTotal",
-    ax=ax3
-)
-ax3.set_title("Top 3 Customer Types — 2023")
-ax3.set_ylabel("Sales ($)")
-ax3.set_xlabel("")
-
-for c in ax3.containers:
-    ax3.bar_label(c, fmt="$%.0f", padding=3)
-
-# -----------------------------
-# 4) Pie chart (TOP 5 ONLY)
-# -----------------------------
-ax4 = fig.add_subplot(gs[2, :])
-top5 = yearly_sorted.head(5)
-
-ax4.pie(
-    top5["YearlyTotal"],
-    labels=top5["Category"],
-    autopct="%1.1f%%",
-    startangle=90,
-    wedgeprops={"edgecolor": "white"}
-)
-ax4.set_title("Customer Mix — Top 5 Only")
-
-# -----------------------------
-# Title
-# -----------------------------
-plt.suptitle("AFC Sales Dashboard — 2023", fontsize=18, y=0.97)
-plt.show()
+fig.update_layout(bargap=0.2, bargroupgap=0.05)
+fig.show()
