@@ -148,6 +148,15 @@ pie_df = (
     year_df.groupby("CustomerType", as_index=False)["Sales"].sum()
     .sort_values("Sales", ascending=False)
 )
+
+# Identify largest slice
+max_type = pie_df.iloc[0]["CustomerType"]
+
+# Create pull values (explode only the largest)
+pie_df["Pull"] = pie_df["CustomerType"].apply(
+    lambda x: 0.12 if x == max_type else 0
+)
+
 fig_pie = px.pie(
     pie_df,
     names="CustomerType",
@@ -155,6 +164,14 @@ fig_pie = px.pie(
     title=f"Sales Distribution — {selected_year}",
     hole=0.40,
 )
+
+# Apply pull AFTER creation
+fig_pie.update_traces(
+    pull=pie_df["Pull"],
+    textinfo="percent+label",
+)
+
+
 
 fig_year_donut = px.pie(
     year_totals,
@@ -164,6 +181,7 @@ fig_year_donut = px.pie(
     title="Total Sales Share by Year (2023–2025)",
     category_orders={"Year": YEAR_ORDER},
 )
+
 
 fig_year_sections = px.bar(
     totals_by_year_type,
