@@ -2,6 +2,14 @@ import pandas as pd
 import plotly.express as px
 import plotly.io as pio
 import streamlit as st
+from pathlib import Path
+
+
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR/"sales_dashboard"
+if not DATA_DIR.exists():
+    DATA_DIR = BASE_DIR
+
 
 st.set_page_config(page_title="AFC Sales Dashboard", layout="wide")
 
@@ -28,9 +36,9 @@ st.caption("High-level view: Monthly sales by customer type, distribution, and y
 # Load + reshape
 # -------------------------
 paths = {
-    "2023": "AFC SALES BY CUSTOMER TYPE 2023.CSV",
-    "2024": "AFC SALES BY CUSTOMER TYPE 2024.CSV",
-    "2025": "AFC SALES BY CUSTOMER TYPE 2025.CSV",
+    "2023": DATA_DIR / "AFC SALES BY CUSTOMER TYPE 2023.CSV",
+    "2024": DATA_DIR /"AFC SALES BY CUSTOMER TYPE 2024.CSV",
+    "2025": DATA_DIR /"AFC SALES BY CUSTOMER TYPE 2025.CSV",
 }
 
 MONTH_ORDER = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
