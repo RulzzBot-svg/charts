@@ -169,7 +169,9 @@ fig_pie = px.pie(
 fig_pie.update_traces(
     pull=pie_df["Pull"],
     textinfo="percent+label",
+    marker=dict(line=dict(color="white",width=2))
 )
+
 
 
 
