@@ -5,7 +5,7 @@ import plotly.io as pio
 import streamlit as st
 
 st.set_page_config(page_title="Purchases by Vendor", layout="wide")
-px.defaults.template = "plotly_dark"
+px.defaults.template = "seaborn"
 
 MONTH_ORDER = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 YEAR_ORDER = ["2023", "2024", "2025"]

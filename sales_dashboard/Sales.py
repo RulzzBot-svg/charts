@@ -16,7 +16,7 @@ st.set_page_config(page_title="AFC Sales Dashboard", layout="wide")
 # -------------------------
 # Global Plotly styling
 # -------------------------
-px.defaults.template = "plotly_dark"
+px.defaults.template = "seaborn"
 
 # -------------------------
 # Cached helpers (fast)
